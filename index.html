@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Phần mềm tự ôn tập, kiểm tra trắc nghiệm</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script defer src="./mammoth.browser.min.js"></script>
+  <script defer src="./app.js"></script>
+  <script defer src="./ontap.js"></script>
+  <script defer src="./kiemtra.js"></script>
+</head>
+<body>
+  <header class="hero">
+    <div class="marquee" aria-label="Chào mừng">
+      <span>Chào mừng bạn đến với phần mềm tự ôn tập, kiểm tra trắc nghiệm của Trường Sĩ quan Thông tin</span>
+      <span aria-hidden="true">Chào mừng bạn đến với phần mềm tự ôn tập, kiểm tra trắc nghiệm của Trường Sĩ quan Thông tin</span>
+    </div>
+    <p class="subtitle">VÕ HỒNG HẢI — BỘ MÔN TRUYỀN DẪN — KHOA VIỄN THÔNG</p>
+  </header>
+
+  <main class="stage">
+    <!-- B1: Nạp file -->
+    <section id="fileSection" class="panel center">
+      <input id="fileInput" type="file" accept=".docx" hidden />
+      <button id="btnUpload" class="btn primary">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <path d="M7 10l5-5 5 5"/>
+          <path d="M12 15V5"/>
+        </svg>
+        <span>Nạp file</span>
+      </button>
+      <div id="status" class="status"></div>
+    </section>
+
+    <!-- B2: Menu -->
+    <section id="menuSection" class="panel menu lift-up" aria-hidden="false">
+      <button id="btnOntap" class="btn success tall3x" disabled>
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M4 19.5A2.5 2.5 0 0 0 6.5 22h11A2.5 2.5 0 0 0 20 19.5v-13A2.5 2.5 0 0 0 17.5 4h-11A2.5 2.5 0 0 0 4 6.5z"/>
+          <path d="M8 7h8M8 11h8M8 15h6"/>
+        </svg>
+        <span>Ôn tập</span>
+      </button>
+
+      <button id="btnKiemtra" class="btn danger tall3x" disabled>
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M21 10H3M7 6l-4 4 4 4"/>
+          <path d="M14 21a7 7 0 1 0 0-14"/>
+        </svg>
+        <span>Kiểm tra</span>
+      </button>
+    </section>
+
+    <!-- Nút hướng dẫn -->
+    <section class="guideSection">
+      <button id="btnGuide" class="btn guide-btn">Hướng dẫn sử dụng</button>
+    </section>
+
+    <!-- Khu làm bài -->
+    <section id="contentSection" class="panel hidden" aria-hidden="true">
+      <div id="content"></div>
+    </section>
+  </main>
+
+  <!-- Modal kết quả -->
+  <div id="resultModal" class="modal" aria-hidden="true">
+    <div class="modal__panel">
+      <div class="modal__head">
+        <h3>Kết quả</h3>
+        <button id="btnCloseResult" class="icon-btn" aria-label="Đóng">&times;</button>
+      </div>
+      <div id="resultBody" class="modal__body"></div>
+      <div class="modal__foot">
+        <button id="btnOkResult" class="btn success">Quay về trang chủ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal hướng dẫn -->
+  <div id="guideModal" class="modal" aria-hidden="true">
+    <div class="modal__panel">
+      <div class="modal__head">
+        <h3>Hướng dẫn sử dụng</h3>
+        <button id="btnCloseGuide" class="icon-btn" aria-label="Đóng">&times;</button>
+      </div>
+      <div id="guideBody" class="modal__body">
+        <ol style="line-height:1.6">
+          <li>Bấm <b>Nạp file</b> để chọn .docx. Đáp án đúng cần <b>in đậm</b> hoặc có dòng <i>“Đáp án: A/B/…”</i>.</li>
+          <li>Nạp xong: chọn <b>Ôn tập</b> (không giới hạn thời gian) hoặc <b>Kiểm tra</b> (chọn số câu & hẹn giờ).</li>
+          <li>Dùng bảng số <b>bên phải</b> để chuyển câu; <b>chuột phải</b> lên số câu để <b>cắm/bỏ cờ đỏ</b>.</li>
+          <li>Nộp bài sẽ hiện điểm và danh sách câu sai (đúng xanh, sai đỏ).</li>
+        </ol>
+      </div>
+      <div class="modal__foot">
+        <button id="btnOkGuide" class="btn success">Tôi đã hiểu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timer (Kiểm tra) -->
+  <div id="globalTimer" class="timer hidden"></div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+</body>
+</html>
