@@ -1,4 +1,4 @@
-// =================== CORE APP – nạp file, parse, UI helpers + modal Hướng dẫn ===================
+// =================== CORE APP – parse Word, Thư viện đề, Chương, modal, session ===================
 const els = {
   fileInput: document.getElementById("fileInput"),
   btnUpload: document.getElementById("btnUpload"),
@@ -9,11 +9,15 @@ const els = {
   toast: document.getElementById("toast"),
   btnOntap: document.getElementById("btnOntap"),
   btnKiemtra: document.getElementById("btnKiemtra"),
+  bankSelect: document.getElementById("bankSelect"),
+  btnUseBank: document.getElementById("btnUseBank"),
+  btnDeleteBank: document.getElementById("btnDeleteBank"),
 };
 
-let QUESTIONS = [];
+let CURRENT_BANK = null;   // {id, name, chapters:[], questions:[{text,choices[],chapter}]}
+let QUESTIONS = [];        // alias: CURRENT_BANK?.questions
 
-// ===== Toast
+/* -------- Toast -------- */
 function toast(msg){
   els.toast.textContent = msg;
   els.toast.classList.remove("hidden");
@@ -22,10 +26,10 @@ function toast(msg){
   toast._t = setTimeout(()=>{
     els.toast.classList.remove("show");
     setTimeout(()=>els.toast.classList.add("hidden"), 180);
-  }, 3200);
+  }, 2600);
 }
 
-// ===== Hướng dẫn modal
+/* -------- Hướng dẫn modal -------- */
 const guideModal = document.getElementById("guideModal");
 const guideSec = document.querySelector(".guideSection");
 document.getElementById("btnGuide")?.addEventListener("click", ()=>{
@@ -39,23 +43,102 @@ function closeGuide(){
   guideModal.setAttribute("aria-hidden","true");
 }
 
-// ===== Nạp file
+/* -------- Session guard -------- */
+let __session = { active:false, mode:null };
+function startSession(mode){
+  __session.active = true; __session.mode = mode;
+  window.addEventListener("beforeunload", beforeUnloadGuard);
+  document.getElementById("contentSection").classList.add("exam-mode");
+}
+function endSession(){
+  __session.active = false; __session.mode = null;
+  window.removeEventListener("beforeunload", beforeUnloadGuard);
+  document.getElementById("contentSection").classList.remove("exam-mode");
+}
+function beforeUnloadGuard(e){ if(!__session.active) return; e.preventDefault(); e.returnValue=""; }
+
+/* -------- LocalStorage: ngân hàng đề -------- */
+const LS_BANKS = "quiz_banks_v1";
+function loadBanks(){
+  try{ return JSON.parse(localStorage.getItem(LS_BANKS)||"[]"); }catch{ return []; }
+}
+function saveBanks(banks){ try{ localStorage.setItem(LS_BANKS, JSON.stringify(banks)); }catch{} }
+function addBank(bank){ const banks=loadBanks(); banks.push(bank); saveBanks(banks); return banks; }
+function deleteBank(id){
+  let banks=loadBanks().filter(b=>b.id!==id); saveBanks(banks);
+  if(CURRENT_BANK?.id===id){ CURRENT_BANK=null; QUESTIONS=[]; }
+  return banks;
+}
+function populateBankSelect(){
+  const banks = loadBanks();
+  els.bankSelect.innerHTML = "";
+  if(!banks.length){
+    const op = document.createElement("option");
+    op.value=""; op.textContent="(Thư viện trống)";
+    els.bankSelect.appendChild(op);
+    els.btnUseBank.disabled = true;
+    els.btnDeleteBank.disabled = true;
+    return;
+  }
+  banks.forEach(b=>{
+    const op=document.createElement("option");
+    op.value=b.id; op.textContent=`${b.name} (${b.questions.length} câu)`;
+    els.bankSelect.appendChild(op);
+  });
+  els.btnUseBank.disabled = false;
+  els.btnDeleteBank.disabled = false;
+}
+populateBankSelect();
+
+els.bankSelect.addEventListener("change", ()=>{
+  const id = els.bankSelect.value;
+  const banks = loadBanks();
+  const found = banks.find(b=>b.id===id);
+  if(found){
+    setCurrentBank(found);
+    toast(`Đã chọn đề: ${found.name}`);
+  }
+});
+els.btnUseBank.addEventListener("click", ()=>{
+  const id = els.bankSelect.value;
+  const banks = loadBanks();
+  const found = banks.find(b=>b.id===id);
+  if(!found){ toast("Chưa chọn đề."); return; }
+  setCurrentBank(found);
+  els.status.innerHTML = `Đang dùng đề: <b>${CURRENT_BANK.name}</b> — <i>${CURRENT_BANK.questions.length}</i> câu, ${CURRENT_BANK.chapters.length} chương.`;
+  els.btnOntap.disabled=false; els.btnKiemtra.disabled=false;
+});
+els.btnDeleteBank.addEventListener("click", ()=>{
+  const id = els.bankSelect.value;
+  if(!id){ toast("Chưa chọn đề."); return; }
+  if(!confirm("Xóa đề này khỏi thư viện?")) return;
+  deleteBank(id);
+  populateBankSelect();
+  els.status.textContent = "Đã xóa đề khỏi thư viện.";
+  els.btnOntap.disabled=true; els.btnKiemtra.disabled=true;
+});
+
+/* -------- Nạp file -------- */
 els.btnUpload.addEventListener("click", ()=> els.fileInput.click());
 els.fileInput.addEventListener("change", async (e)=>{
   const file = e.target.files?.[0];
   if(!file) return;
-  window.__lastFileName = file.name;
 
   if(typeof mammoth === "undefined"){
     toast("Thiếu thư viện Mammoth. Đặt mammoth.browser.min.js cạnh index.html.");
-    e.target.value = "";
-    return;
+    e.target.value = ""; return;
   }
-
   try{
     const ab = await file.arrayBuffer();
     const { value: html } = await mammoth.convertToHtml({ arrayBuffer: ab });
-    parseQuestionsFromHtml(html);
+    const bank = buildBankFromHtml(html, file.name);
+    if(!bank.questions.length){ toast("Không đọc được câu hỏi nào."); return; }
+    const banks = addBank(bank);
+    populateBankSelect();
+    setCurrentBank(bank);
+    els.status.innerHTML = `Đã nạp & lưu <b>${bank.questions.length}</b> câu — <i>${bank.name}</i> (${bank.chapters.length} chương).`;
+    els.btnOntap.disabled=false; els.btnKiemtra.disabled=false;
+    toast("Đã thêm vào Thư viện đề.");
   }catch(err){
     toast("Lỗi đọc file: " + err.message);
   }finally{
@@ -63,11 +146,11 @@ els.fileInput.addEventListener("change", async (e)=>{
   }
 });
 
-// ===== Parse từ HTML
-function parseQuestionsFromHtml(html){
-  QUESTIONS = [];
+/* -------- Parse HTML thành ngân hàng đề (nhận diện chương) -------- */
+function buildBankFromHtml(html, name="Đề mới"){
   const doc = new DOMParser().parseFromString(html, "text/html");
 
+  // gom các đoạn có text
   const nodes = [];
   doc.body.querySelectorAll("p, li").forEach(node=>{
     const clone = node.cloneNode(true);
@@ -75,72 +158,135 @@ function parseQuestionsFromHtml(html){
     if(txt) nodes.push(clone);
   });
 
-  const hasBold = (el)=> !!(el && (el.querySelector("strong,b") || [...el.querySelectorAll("*")].some(x=>/bold|700|800|900/i.test(x.style?.fontWeight||""))));
+  const hasBold = (el) => {
+    if(!el) return false;
+    if(el.querySelector("strong,b")) return true;
+    const all=[el, ...el.querySelectorAll("*")];
+    return all.some(x => /bold|700|800|900/i.test(x.style?.fontWeight||""));
+  };
   const compact = el => (el.textContent||"").replace(/\s+/g," ").trim();
   const getAnswerLetterInText = s => (s.match(/đáp\s*án\s*[:：]\s*([A-Da-d])/i)?.[1]||"").toUpperCase()||null;
 
-  let current=null, pendingLetter=null;
+  let currentQ=null, pendingLetter=null, currentChapter="Chung";
+  const questions=[];
 
   for(const node of nodes){
     const text = compact(node);
 
-    const found = getAnswerLetterInText(text);
-    if(found){ pendingLetter = found; continue; }
-
-    const mq = text.match(/^C[âa]u\s*\d+\s*[:.\)]\s*(.*)$/i);
-    if(mq){
-      if(current){
-        if(pendingLetter && !current.choices.some(c=>c.isCorrect)){
-          markCorrectByLetter(current, pendingLetter);
-        }
-        QUESTIONS.push(current);
-        pendingLetter=null;
-      }
-      current = { text:(mq[1]||"").trim(), choices:[] };
+    // Chương: "Chương 1: ..." hoặc "CHƯƠNG ..."
+    const mch = text.match(/^Chương\s*\d*\s*[:.\-]?\s*(.+)$/i);
+    if(mch){
+      currentChapter = `Chương: ${mch[1].trim()}`;
       continue;
     }
 
-    if(current){
+    // Dòng "Đáp án: X"
+    const found = getAnswerLetterInText(text);
+    if(found){ pendingLetter = found; continue; }
+
+    // Câu hỏi
+    const mq = text.match(/^C[âa]u\s*\d+\s*[:.\)]\s*(.*)$/i);
+    if(mq){
+      if(currentQ){
+        if(pendingLetter && !currentQ.choices.some(c=>c.isCorrect)){
+          markCorrectByLetter(currentQ, pendingLetter);
+        }
+        questions.push(currentQ);
+        pendingLetter=null;
+      }
+      currentQ = { text:(mq[1]||"").trim(), choices:[], chapter: currentChapter };
+      continue;
+    }
+
+    // Đáp án
+    if(currentQ){
       const mc = text.match(/^\s*([A-Da-d])\s*[\.\)]\s*(.*)$/);
       if(mc){
         const letter = mc[1].toUpperCase();
         const choiceText = (mc[2]||"").trim();
         const isCorrect = hasBold(node);
-        current.choices.push({ text:choiceText, isCorrect, letter });
+        currentQ.choices.push({ text:choiceText, isCorrect, letter });
+        continue;
       }
     }
   }
-  if(current){
-    if(pendingLetter && !current.choices.some(c=>c.isCorrect)){
-      markCorrectByLetter(current, pendingLetter);
+  if(currentQ){
+    if(pendingLetter && !currentQ.choices.some(c=>c.isCorrect)){
+      markCorrectByLetter(currentQ, pendingLetter);
     }
-    QUESTIONS.push(current);
+    questions.push(currentQ);
   }
 
+  // hậu kiểm
   const noCorrect=[], tooFew=[];
-  QUESTIONS.forEach((q,i)=>{
+  questions.forEach((q,i)=>{
     if(q.choices.length<2) tooFew.push(i+1);
     if(!q.choices.some(c=>c.isCorrect)) noCorrect.push(i+1);
   });
+  if(noCorrect.length) toast(`Chưa nhận diện đáp án đúng: câu ${noCorrect.join(", ")}`);
+  if(tooFew.length) toast(`Câu có <2 đáp án: ${tooFew.join(", ")}`);
 
-  if(QUESTIONS.length){
-    els.status.innerHTML = `Đã nạp <b>${QUESTIONS.length}</b> câu hỏi — <i>${window.__lastFileName||""}</i>`;
-    toast(`Đã nạp ${QUESTIONS.length} câu hỏi`);
-    if(tooFew.length) toast(`Câu có ít hơn 2 đáp án: ${tooFew.join(", ")}`);
-    if(noCorrect.length) toast(`Chưa nhận diện đáp án đúng ở câu: ${noCorrect.join(", ")}`);
-    els.btnOntap.disabled=false;
-    els.btnKiemtra.disabled=false;
-  }else{
-    els.status.textContent = "Không đọc được câu hỏi nào.";
-    toast("Không đọc được câu hỏi nào");
+  const chapters = [...new Set(questions.map(q=>q.chapter))];
+
+  return {
+    id: `bank_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+    name, chapters, questions
+  };
+}
+function markCorrectByLetter(q, letter){
+  const idx = q.choices.findIndex(c=>c.letter===letter.toUpperCase());
+  if(idx>=0) q.choices = q.choices.map((c,i)=>({...c, isCorrect:i===idx}));
+}
+
+/* -------- Chọn chương (modal) -------- */
+const chapterModal = document.getElementById("chapterModal");
+const chapterList = document.getElementById("chapterList");
+document.getElementById("btnCloseChapter")?.addEventListener("click", closeChapterModal);
+function closeChapterModal(){
+  chapterModal.classList.remove("show");
+  chapterModal.setAttribute("aria-hidden","true");
+  chapterList.innerHTML="";
+}
+function openChapterModal(chapters){
+  chapterList.innerHTML="";
+  // Tất cả
+  const wrapAll=document.createElement("label");
+  wrapAll.className="ch-item";
+  wrapAll.innerHTML=`<input type="radio" name="chap" value="__ALL__" checked /> <b>Tất cả các chương</b>`;
+  chapterList.appendChild(wrapAll);
+  chapters.forEach((ch, i)=>{
+    const item=document.createElement("label");
+    item.className="ch-item";
+    item.innerHTML = `<input type="radio" name="chap" value="${escapeHtml(ch)}" /> ${escapeHtml(ch)}`;
+    chapterList.appendChild(item);
+  });
+  chapterModal.classList.add("show");
+  chapterModal.setAttribute("aria-hidden","false");
+}
+function getSelectedChapter(){
+  const input = chapterList.querySelector('input[name="chap"]:checked');
+  return input ? input.value : "__ALL__";
+}
+document.getElementById("btnOkChapter")?.addEventListener("click", ()=>{
+  // chỉ đóng; logic lấy giá trị nằm trong pickChapters()
+  if(typeof window.__afterPickCh === "function"){
+    const val = getSelectedChapter();
+    window.__afterPickCh(val);
+    window.__afterPickCh = null;
   }
-}
-function markCorrectByLetter(question, letter){
-  const idx = question.choices.findIndex(c=>c.letter===letter.toUpperCase());
-  if(idx>=0) question.choices = question.choices.map((c,i)=>({...c, isCorrect:i===idx}));
+  closeChapterModal();
+});
+
+/* -------- API chọn chương cho Ôn tập / Kiểm tra -------- */
+async function pickChapters(){
+  return new Promise(resolve=>{
+    if(!CURRENT_BANK){ toast("Chưa có đề đang dùng."); resolve({ list: [], selected: "__ALL__" }); return; }
+    openChapterModal(CURRENT_BANK.chapters||[]);
+    window.__afterPickCh = (val)=> resolve({ list: CURRENT_BANK.chapters||[], selected: val });
+  });
 }
 
-/* ======= Helpers dùng chung ======= */
+/* -------- Helpers dùng chung (đã có từ trước) -------- */
 function hideMainPanels(){
   const fileSec = document.getElementById("fileSection");
   const menuSec = document.getElementById("menuSection");
@@ -148,16 +294,13 @@ function hideMainPanels(){
 
   fileSec.classList.add("hidden"); fileSec.style.display="none";
   menuSec.classList.add("hidden"); menuSec.style.display="none";
-  if (guideSec){ guideSec.classList.add("hidden"); guideSec.style.display="none"; } // ẩn hướng dẫn
+  if (guideSec){ guideSec.classList.add("hidden"); guideSec.style.display="none"; }
 
   contentSection.classList.remove("hidden");
   contentSection.setAttribute("aria-hidden","false");
-
-    // 👇 bật chế độ làm bài: loại bỏ khung panel ngoài
   contentSection.classList.add("exam-mode");
 }
 function removeSidebar(){ const old = document.querySelector(".sidebar"); if(old) old.remove(); }
-
 function buildSidebar(total, pageSize, getPage, setPage, onJump, onFlag, getAnswers, getFlags){
   const root = document.createElement("div");
   root.className="sidebar";
@@ -208,16 +351,14 @@ function buildSidebar(total, pageSize, getPage, setPage, onJump, onFlag, getAnsw
   return { root, render, renderGrid };
 }
 
+/* -------- Modal kết quả (giữ bản đã fix) -------- */
 function showResultModal({ total, correct, score10, wrongs }) {
   const modal = document.getElementById("resultModal");
   const body  = document.getElementById("resultBody");
   const btnClose = document.getElementById("btnCloseResult");
   const btnOk = document.getElementById("btnOkResult");
-
-  // Đổi nhãn nút
   if (btnOk) btnOk.textContent = "Quay về trang chủ";
 
-  // Nội dung kết quả
   let html = `<p><b>Kết quả:</b> ${correct}/${total} câu đúng — Điểm: <b>${score10}/10</b></p>`;
   if (wrongs.length) {
     html += `<h4>Các câu làm sai</h4>`;
@@ -238,30 +379,25 @@ function showResultModal({ total, correct, score10, wrongs }) {
   }
   body.innerHTML = html;
 
-  // Hiển thị modal
   modal.classList.add("show");
   modal.setAttribute("aria-hidden", "false");
 
-  // Hàm đóng & reset về trang đầu
   function closeAndReset() {
-    // Ẩn modal
     modal.classList.remove("show");
     modal.setAttribute("aria-hidden", "true");
-
-    // Gỡ listener (tránh nhân đôi lần sau)
     modal.removeEventListener("click", onBackdrop);
     document.removeEventListener("keydown", onEsc);
 
-    // Xóa sidebar & vùng làm bài
-    window.UI.removeSidebar?.();
+    removeSidebar();
     const content = document.getElementById("content");
     content.innerHTML = "";
 
     const contentSection = document.getElementById("contentSection");
     contentSection.classList.add("hidden");
-    contentSection.classList.remove("exam-mode"); // bỏ style không nền khi làm bài
+    contentSection.classList.remove("exam-mode");
 
-    // Hiện lại màn hình chính
+    endSession();
+
     const fileSec = document.getElementById("fileSection");
     const menuSec = document.getElementById("menuSection");
     const guideSec = document.querySelector(".guideSection");
@@ -270,24 +406,32 @@ function showResultModal({ total, correct, score10, wrongs }) {
     if (guideSec) { guideSec.classList.remove("hidden"); guideSec.style.display = ""; }
   }
 
-  // Click nút X & nút OK
-  if (btnClose) btnClose.onclick = (e) => { e.stopPropagation(); closeAndReset(); };
-  if (btnOk) btnOk.onclick = (e) => { e.stopPropagation(); closeAndReset(); };
+  if (btnClose) btnClose.onclick = (e)=>{ e.stopPropagation(); closeAndReset(); };
+  if (btnOk) btnOk.onclick = (e)=>{ e.stopPropagation(); closeAndReset(); };
 
-  // Click nền ngoài để đóng
-  function onBackdrop(ev) { if (ev.target === modal) closeAndReset(); }
+  function onBackdrop(ev){ if (ev.target === modal) closeAndReset(); }
+  function onEsc(ev){ if (ev.key === "Escape") closeAndReset(); }
   modal.addEventListener("click", onBackdrop);
-
-  // Phím ESC để đóng
-  function onEsc(ev) { if (ev.key === "Escape") closeAndReset(); }
   document.addEventListener("keydown", onEsc);
 }
 
-
+/* -------- APIs export cho modules -------- */
+function setCurrentBank(bank){
+  CURRENT_BANK = bank;
+  QUESTIONS = bank.questions;
+}
+function getQuestions(){ return QUESTIONS||[]; }
+function getChapters(){ return CURRENT_BANK?.chapters || []; }
+function getQuestionsByChapterSelect(chVal){
+  const qs = getQuestions();
+  if(!qs.length) return [];
+  if(chVal==="__ALL__") return qs.slice();
+  return qs.filter(q=>q.chapter===chVal);
+}
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
 }
 
-/* Expose cho các module */
-window.getQuestions = () => QUESTIONS;
-window.UI = { hideMainPanels, removeSidebar, buildSidebar, showResultModal, escapeHtml, toast };
+window.getQuestions = getQuestions;
+window.bankAPI = { getChapters, pickChapters, getQuestionsByChapterSelect };
+window.UI = { hideMainPanels, removeSidebar, buildSidebar, showResultModal, escapeHtml, toast, startSession, endSession };

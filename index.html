@@ -20,7 +20,7 @@
   </header>
 
   <main class="stage">
-    <!-- B1: Nạp file -->
+    <!-- B1: Nạp file + Thư viện đề -->
     <section id="fileSection" class="panel center">
       <input id="fileInput" type="file" accept=".docx" hidden />
       <button id="btnUpload" class="btn primary">
@@ -32,6 +32,17 @@
         <span>Nạp file</span>
       </button>
       <div id="status" class="status"></div>
+
+      <div id="bankLib" class="bank-lib">
+        <div class="bank-row">
+          <label for="bankSelect">Thư viện đề:</label>
+          <select id="bankSelect"></select>
+        </div>
+        <div class="bank-actions">
+          <button id="btnUseBank" class="btn success" disabled>Áp dụng đề này</button>
+          <button id="btnDeleteBank" class="btn danger" disabled>Xóa khỏi thư viện</button>
+        </div>
+      </div>
     </section>
 
     <!-- B2: Menu -->
@@ -87,14 +98,30 @@
       </div>
       <div id="guideBody" class="modal__body">
         <ol style="line-height:1.6">
-          <li>Bấm <b>Nạp file</b> để chọn .docx. Đáp án đúng cần <b>in đậm</b> hoặc có dòng <i>“Đáp án: A/B/…”</i>.</li>
-          <li>Nạp xong: chọn <b>Ôn tập</b> (không giới hạn thời gian) hoặc <b>Kiểm tra</b> (chọn số câu & hẹn giờ).</li>
-          <li>Dùng bảng số <b>bên phải</b> để chuyển câu; <b>chuột phải</b> lên số câu để <b>cắm/bỏ cờ đỏ</b>.</li>
-          <li>Nộp bài sẽ hiện điểm và danh sách câu sai (đúng xanh, sai đỏ).</li>
+          <li>Bấm <b>Nạp file</b> (.docx). Đáp án đúng cần <b>in đậm</b> hoặc có dòng <i>“Đáp án: A/B/…”</i>.</li>
+          <li>Mỗi lần nạp sẽ lưu vào <b>Thư viện đề</b>. Có thể chọn lại để dùng mà không cần nạp lại.</li>
+          <li>Khi vào <b>Ôn tập</b>/<b>Kiểm tra</b>, chọn <b>Chương</b> cần làm hoặc <b>Tất cả</b>.</li>
+          <li>Trong khi làm: bảng câu hỏi bên phải (5×5), cắm/bỏ cờ bằng <b>chuột phải</b>.</li>
         </ol>
       </div>
       <div class="modal__foot">
         <button id="btnOkGuide" class="btn success">Tôi đã hiểu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal chọn chương -->
+  <div id="chapterModal" class="modal" aria-hidden="true">
+    <div class="modal__panel">
+      <div class="modal__head">
+        <h3>Chọn chương</h3>
+        <button id="btnCloseChapter" class="icon-btn" aria-label="Đóng">&times;</button>
+      </div>
+      <div class="modal__body">
+        <div id="chapterList" class="chapter-list"></div>
+      </div>
+      <div class="modal__foot">
+        <button id="btnOkChapter" class="btn success">Bắt đầu</button>
       </div>
     </div>
   </div>

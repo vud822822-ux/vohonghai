@@ -3,8 +3,6 @@
   --muted:#a5b0de; --line:rgba(255,255,255,.08);
   --primary:#60a5fa; --success:#34d399; --danger:#ef4444;
 }
-
-/* ===== Base ===== */
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
@@ -14,12 +12,12 @@ body{
 }
 .hidden{display:none}
 
-/* ===== Header ===== */
+/* Header */
 .hero{padding:18px 12px 8px; text-align:center}
 .marquee{
   position:relative; overflow:hidden; white-space:nowrap;
   mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);
-  height:48px; line-height:48px; margin-bottom:6px; /* tránh che chữ g/p/q */
+  height:48px; line-height:48px; margin-bottom:6px;
 }
 .marquee span{
   display:inline-block; padding-right:2.5rem; font-weight:1000; font-size:34px;
@@ -29,13 +27,12 @@ body{
 }
 .marquee span+span{ position:absolute; left:100%; top:0 }
 @keyframes marquee{ to{ transform:translateX(-100%) } }
-
 .subtitle{
   margin-top:10px; font-size:30px; font-weight:1000; letter-spacing:.6px;
   color:#ff5a5a; text-transform:uppercase;
 }
 
-/* ===== Stage & Panels ===== */
+/* Stage & Panels */
 .stage{min-height:calc(100vh - 200px); display:grid; place-items:center; gap:14px; padding:12px}
 .panel{
   width:min(1000px,92vw); background:var(--panel); border:1px solid var(--line);
@@ -45,13 +42,20 @@ body{
 .status{margin-top:12px; color:var(--muted); font-size:18px}
 .lift-up{ margin-top:-6px }
 
-/* ===== Menu & Guide ===== */
+/* Thư viện đề */
+.bank-lib{margin-top:18px; display:grid; gap:10px}
+.bank-row{display:flex; align-items:center; gap:10px; justify-content:center}
+#bankSelect{min-width:320px; padding:10px 12px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e5e7eb; font-size:16px}
+.bank-actions{display:flex; gap:12px; justify-content:center}
+.bank-actions .btn{width:auto; min-width:220px}
+
+/* Menu & Guide */
 .menu{display:grid; grid-template-columns:1fr 1fr; gap:24px}
 @media (max-width:640px){ .menu{ grid-template-columns:1fr } }
 .guideSection{ display:grid; place-items:center }
 .guide-btn{ width:auto; min-height:64px; padding:16px 22px; font-size:20px }
 
-/* ===== Buttons ===== */
+/* Buttons */
 .btn{
   display:flex; align-items:center; justify-content:center; gap:14px;
   padding:30px 36px; min-height:96px; width:100%;
@@ -71,7 +75,7 @@ body{
 .btn[disabled]{ opacity:.45; cursor:not-allowed; filter:grayscale(.15); box-shadow:none }
 .tall3x{ min-height:192px; font-size:36px }
 
-/* ===== Toast ===== */
+/* Toast */
 .toast{
   position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(16px);
   background:#0e1433; border:1px solid var(--line); padding:12px 16px; border-radius:12px;
@@ -80,29 +84,14 @@ body{
 .toast.show{ opacity:1; transform:translateX(-50%) translateY(0) }
 .toast.hidden{ display:none }
 
-/* =================== Exam layout =================== */
-/* Khối làm bài: luôn căn giữa */
-.exam-wrap{
-  width: 100%;
-  padding: 24px 12px;
-  display: flex;
-  justify-content: center;   /* <-- căn giữa theo chiều ngang */
-}
+/* Exam layout (khối giữa) */
+.exam-wrap{ width:100%; padding:24px 12px; display:flex; justify-content:center; }
 .exam{
-  width: min(1000px, 86vw);
-  margin: 0;                 /* <-- không margin-right nữa */
-  background: rgba(15,21,51,.92);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  padding: 32px;
-  box-shadow: 0 22px 60px rgba(0,0,0,.35);
+  width:min(1000px, 86vw);
+  background:rgba(15,21,51,.92);
+  border:1px solid var(--line); border-radius:20px;
+  padding:32px; box-shadow:0 22px 60px rgba(0,0,0,.35);
 }
-
-@media (max-width: 1280px){
-  .sidebar{ right: 12px; transform: scale(.95); transform-origin: top right; }
-}
-
-
 .exam h3{ font-size:30px; margin:0 0 20px 0; line-height:1.35 }
 .exam .choice{
   display:block; margin:14px 0; padding:16px;
@@ -116,21 +105,22 @@ body{
 
 .exam-nav{ margin-top:26px; display:flex; justify-content:space-between; gap:12px }
 .exam-nav .btn{ width:280px }
-
-/* === Nút Nộp bài: trực tiếp trong .exam, không wrapper nền === */
 .btn.submit{
   width:320px; font-size:22px; background:#475569; color:#fff;
   display:block; margin:24px auto 0;
 }
 .btn.submit:hover{ background-image: linear-gradient(90deg,#ef4444,#22c55e); }
 
-/* =================== Sidebar phải =================== */
+/* Sidebar phải */
 .sidebar{
   position:fixed; top:120px; right:24px; z-index:100;
   background:rgba(15,21,51,.92);
   border:1px solid var(--line); border-radius:14px;
   padding:12px; width:232px; box-sizing:border-box;
   box-shadow:0 14px 36px rgba(0,0,0,.4);
+}
+@media (max-width: 1280px){
+  .sidebar{ right: 12px; transform: scale(.95); transform-origin: top right; }
 }
 .sidebar-grid{
   display:grid; grid-template-columns: repeat(5, 34px);
@@ -154,7 +144,7 @@ body{
 }
 .sidebar-pager .mini:disabled{ opacity:.45; cursor:not-allowed }
 
-/* =================== Config card (Kiểm tra) =================== */
+/* Config card (Kiểm tra) */
 .config-card{
   width:min(900px, 92vw);
   margin:0 auto;
@@ -177,7 +167,7 @@ body{
 .actions{ margin-top:16px; display:flex; justify-content:flex-end; gap:12px }
 .btn.create:disabled{ opacity:.5; cursor:not-allowed; filter:grayscale(.2); box-shadow:none }
 
-/* =================== Timer =================== */
+/* Timer */
 .timer{
   position: fixed; top: 76px; left: 50%; transform: translateX(-50%);
   z-index: 110; background: rgba(15,21,51,.92);
@@ -186,7 +176,7 @@ body{
   box-shadow:0 12px 30px rgba(0,0,0,.35);
 }
 
-/* =================== Modal (kết quả & hướng dẫn) =================== */
+/* Modal & chapter list */
 .modal{position:fixed; inset:0; display:grid; place-items:center; background:rgba(6,10,26,.6); opacity:0; pointer-events:none; transition:opacity .2s ease; padding:16px; z-index:1200}
 .modal.show{opacity:1; pointer-events:auto}
 .modal__panel{width:min(1000px,96vw); max-height:82vh; overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:20px; box-shadow:0 22px 60px rgba(0,0,0,.55); padding:14px; animation:pop .2s ease; backdrop-filter: blur(6px)}
@@ -203,7 +193,7 @@ body{
 .ans.correct{border-color:rgba(52,211,153,.85); background:rgba(52,211,153,.08)}
 .ans.chosen-wrong{border-color:rgba(239,68,68,.85); background:rgba(239,68,68,.08)}
 
-/* Khi làm bài: contentSection không còn nền/bóng/viền để tránh xuất hiện khung thứ 2 */
+/* Khi làm bài: bỏ panel ngoài */
 #contentSection.exam-mode{
   background: transparent !important;
   border: none !important;
@@ -211,3 +201,28 @@ body{
   padding: 0 !important;
   width: 100% !important;
 }
+
+/* Chapter list */
+.chapter-list{ display:grid; gap:10px; }
+.chapter-list .ch-item{
+  display:flex; align-items:center; gap:10px;
+  background:rgba(255,255,255,.05); border:1px solid var(--line); border-radius:12px; padding:10px 12px;
+}
+.chapter-list input[type="radio"]{ width:18px; height:18px }
+
+/* Nhóm 4 ô 'Đơn vị' a/b/c/d */
+.unit-quad{
+  display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+}
+.unit-quad .unit-box{
+  display:flex; align-items:center; gap:8px;
+  background:#0f172a; border:1px solid #334155; border-radius:10px; padding:6px 8px;
+  color:#e5e7eb; font-weight:800;
+}
+.unit-quad .unit-box input[type="number"]{
+  width:90px; padding:8px 10px; border:none; outline:none;
+  background:transparent; color:#e5e7eb; font-size:16px;
+  appearance: textfield;
+}
+.unit-quad .unit-box input::-webkit-outer-spin-button,
+.unit-quad .unit-box input::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }

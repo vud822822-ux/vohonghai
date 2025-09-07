@@ -1,27 +1,35 @@
-// =================== KIỂM TRA – thiết lập, random, timer, sidebar phải 5x5 + cờ ===================
+// =================== KIỂM TRA – chọn chương rồi random trong chương đó + GỬI EMAIL ===================
 const btnKiemtra = document.getElementById("btnKiemtra");
 btnKiemtra.addEventListener("click", startKiemtra);
 
-function startKiemtra(){
-  const bank = (window.getQuestions && window.getQuestions()) || [];
-  if(!bank.length){ alert("Chưa có dữ liệu."); return; }
+async function startKiemtra(){
+  const baseQs = (window.getQuestions && window.getQuestions()) || [];
+  if(!baseQs.length){ alert("Chưa có dữ liệu/đề đang dùng."); return; }
 
-  const { hideMainPanels, removeSidebar, buildSidebar, showResultModal } = window.UI;
+  // Hỏi chương
+  const { pickChapters, getQuestionsByChapterSelect } = window.bankAPI;
+  const pick = await pickChapters();
+  const pool = getQuestionsByChapterSelect(pick.selected);
+  if(!pool.length){ alert("Chương này chưa có câu hỏi."); return; }
+
+  const UI = window.UI;
+  const { hideMainPanels, removeSidebar, buildSidebar, showResultModal, startSession, endSession } = UI;
+
   hideMainPanels();
   removeSidebar();
 
   const content = document.getElementById("content");
   content.innerHTML = "";
 
-  // Thiết lập
+  // ===== form thiết lập
   const card = document.createElement("div");
   card.className = "config-card";
   card.innerHTML = `
     <h2 style="margin:0 0 10px 0">Thiết lập bài kiểm tra</h2>
     <div class="form-grid">
       <div class="form-row">
-        <label for="num-questions">Số câu (tối đa ${bank.length})</label>
-        <input id="num-questions" type="number" min="1" max="${bank.length}" placeholder="Ví dụ: 20" />
+        <label for="num-questions">Số câu (tối đa ${pool.length})</label>
+        <input id="num-questions" type="number" min="1" max="${pool.length}" placeholder="Ví dụ: ${Math.min(20,pool.length)}" />
       </div>
       <div class="form-row">
         <label for="time-mins">Thời gian (phút)</label>
@@ -40,7 +48,41 @@ function startKiemtra(){
           </label>
         </div>
       </div>
+
+      <!-- Khối gửi email -->
+      <div class="form-row" style="grid-column:1/-1; margin-top:8px">
+        <label style="display:flex; align-items:center; gap:10px; font-size:18px">
+          <input id="opt-send-email" type="checkbox" />
+          Gửi kết quả cho thầy giáo
+        </label>
+      </div>
+      <div class="form-row">
+        <label for="tEmail">Gmail của thầy</label>
+        <input id="tEmail" type="email" placeholder="vd: thay@gmail.com" disabled />
+      </div>
+      <div class="form-row">
+        <label for="fullname">Họ và tên</label>
+        <input id="fullname" type="text" placeholder="vd: Võ Hồng Hải" disabled />
+      </div>
+      <div class="form-row">
+        <label for="capbac">Cấp bậc</label>
+        <input id="capbac" type="text" placeholder="vd: Đại úy" disabled />
+      </div>
+      <div class="form-row">
+        <label for="chucvu">Chức vụ</label>
+        <input id="chucvu" type="text" placeholder="vd: Giảng viên" disabled />
+      </div>
+      <div class="form-row">
+        <label>Đơn vị (a b c d)</label>
+        <div class="unit-quad">
+          <div class="unit-box">a <input id="unitA" type="number" min="0" placeholder="a" disabled /></div>
+          <div class="unit-box">b <input id="unitB" type="number" min="0" placeholder="b" disabled /></div>
+          <div class="unit-box">c <input id="unitC" type="number" min="0" placeholder="c" disabled /></div>
+          <div class="unit-box">d <input id="unitD" type="number" min="0" placeholder="d" disabled /></div>
+        </div>
+      </div>
     </div>
+
     <div class="actions">
       <button id="btnCreateExam" class="btn create" disabled>Tạo bài kiểm tra</button>
     </div>
@@ -53,13 +95,43 @@ function startKiemtra(){
   const elShufChoices = card.querySelector("#opt-shuffle-choices");
   const elShufQuestions = card.querySelector("#opt-shuffle-questions");
 
+  // email fields
+  const elOptSend = card.querySelector("#opt-send-email");
+  const elEmail   = card.querySelector("#tEmail");
+  const elName    = card.querySelector("#fullname");
+  const elRank    = card.querySelector("#capbac");
+  const elRole    = card.querySelector("#chucvu");
+  const elA       = card.querySelector("#unitA");
+  const elB       = card.querySelector("#unitB");
+  const elC       = card.querySelector("#unitC");
+  const elD       = card.querySelector("#unitD");
+
+  function setEmailFieldsEnabled(on){
+    [elEmail, elName, elRank, elRole, elA, elB, elC, elD].forEach(i=>{
+      i.disabled = !on;
+    });
+  }
+  elOptSend.addEventListener("change", ()=>{
+    setEmailFieldsEnabled(elOptSend.checked);
+    validate();
+  });
+
+  function isEmail(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s||"").trim()); }
+
   function validate(){
     const n=+elNum.value, t=+elMins.value;
-    elBtn.disabled = !(Number.isInteger(n)&&n>=1&&n<=bank.length && Number.isInteger(t)&&t>=1);
+    let ok = (Number.isInteger(n)&&n>=1&&n<=pool.length && Number.isInteger(t)&&t>=1);
+    if(elOptSend.checked){
+      // Khi gửi email: cần gmail + họ tên tối thiểu
+      ok = ok && isEmail(elEmail.value) && String(elName.value||"").trim().length>0;
+      // a,b,c,d không bắt buộc nhưng nếu nhập thì phải là số >=0 (đã dùng input number)
+    }
+    elBtn.disabled = !ok;
   }
   ["input","change"].forEach(ev=>{
     elNum.addEventListener(ev, validate);
     elMins.addEventListener(ev, validate);
+    [elEmail, elName, elRank, elRole, elA, elB, elC, elD].forEach(i=> i.addEventListener(ev, validate));
   });
 
   elBtn.addEventListener("click", ()=>{
@@ -67,23 +139,44 @@ function startKiemtra(){
     const mins = +elMins.value|0;
     const optChoices = !!elShufChoices.checked;
     const optQuestions = !!elShufQuestions.checked;
-    launchExam({ bank, N, mins, optChoices, optQuestions, buildSidebar, showResultModal });
+
+    const mailOpt = {
+      enabled: !!elOptSend.checked,
+      to: elEmail.value.trim(),
+      name: elName.value.trim(),
+      capbac: elRank.value.trim(),
+      chucvu: elRole.value.trim(),
+      donvi: buildDonVi(elA.value, elB.value, elC.value, elD.value) // "a12b3c2d14"
+    };
+
+    launchExam({
+      pool, N, mins, optChoices, optQuestions,
+      buildSidebar, showResultModal, startSession, endSession,
+      mailOpt
+    });
   });
 }
 
-/* Utils */
+function buildDonVi(a,b,c,d){
+  const ax = String(a||"").trim(), bx=String(b||"").trim(), cx=String(c||"").trim(), dx=String(d||"").trim();
+  const parts = [];
+  if(ax) parts.push(`a${ax}`);
+  if(bx) parts.push(`b${bx}`);
+  if(cx) parts.push(`c${cx}`);
+  if(dx) parts.push(`d${dx}`);
+  return parts.join("");
+}
+
 function clone(x){ return JSON.parse(JSON.stringify(x)); }
 function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
 
-/* Run exam */
-function launchExam({ bank, N, mins, optChoices, optQuestions, buildSidebar, showResultModal }){
-  window.UI.removeSidebar();
-
+function launchExam({ pool, N, mins, optChoices, optQuestions, buildSidebar, showResultModal, startSession, endSession, mailOpt }){
   const content = document.getElementById("content");
   content.innerHTML="";
+  startSession('kiemtra');
 
-  const pool = clone(bank); shuffle(pool);
-  let qs = pool.slice(0, N);
+  const base = clone(pool); shuffle(base);
+  let qs = base.slice(0, N);
   if(optQuestions) shuffle(qs);
   if(optChoices){
     qs = qs.map(q=>{
@@ -154,17 +247,13 @@ function launchExam({ bank, N, mins, optChoices, optQuestions, buildSidebar, sho
     btnPrev.textContent="◀ Quay lại"; btnPrev.className="btn";
     const btnNext=document.createElement("button");
     btnNext.textContent="Tiếp theo ▶"; btnNext.className="btn";
-
     btnPrev.disabled = currentIndex===0;
     btnNext.disabled = currentIndex===qs.length-1;
-
     btnPrev.addEventListener("click", ()=>{ if(currentIndex>0){ currentIndex--; ensurePage(); renderAll(); }});
     btnNext.addEventListener("click", ()=>{ if(currentIndex<qs.length-1){ currentIndex++; ensurePage(); renderAll(); }});
-
     nav.appendChild(btnPrev); nav.appendChild(btnNext);
     exam.appendChild(nav);
 
-    // Nút nộp bài trực tiếp trong .exam
     const btnSubmit=document.createElement("button");
     btnSubmit.textContent="Nộp bài";
     btnSubmit.className="btn submit";
@@ -196,7 +285,25 @@ function launchExam({ bank, N, mins, optChoices, optQuestions, buildSidebar, sho
     });
 
     const score10=(correct/qs.length*10).toFixed(1);
+
+    // ====== GỬI EMAIL (nếu bật)
+    if(mailOpt?.enabled){
+      try{
+        const mailData = buildEmailPayload({
+          to: mailOpt.to, name: mailOpt.name, capbac: mailOpt.capbac, chucvu: mailOpt.chucvu, donvi: mailOpt.donvi,
+          total: qs.length, correct, score10,
+          wrongs, questions: qs, answers
+        });
+        // Mở trình soạn email mặc định (gmail/webmail) bằng mailto:
+        openMailto(mailData);
+      }catch(e){
+        console.warn("Không thể tạo email:", e);
+        window.UI.toast?.("Không thể mở trình gửi email. Kiểm tra trình duyệt.");
+      }
+    }
+
     showResultModal({ total: qs.length, correct, score10, wrongs });
+    endSession();
   }
 
   function renderSidebarGrid(){ sidebar.renderGrid(currentIndex); }
@@ -207,4 +314,43 @@ function launchExam({ bank, N, mins, optChoices, optQuestions, buildSidebar, sho
 
   content.appendChild(wrap);
   renderAll();
+}
+
+/* ========= Helpers cho email ========= */
+function buildEmailPayload({ to, name, capbac, chucvu, donvi, total, correct, score10, wrongs, questions, answers }){
+  const subject = `[KQ Kiểm tra] ${name || 'Học viên'} - ${score10}/10`;
+
+  // Lấy chi tiết câu sai/đúng
+  const lines = [];
+  lines.push(`Họ và tên: ${name||'-'}`);
+  lines.push(`Cấp bậc: ${capbac||'-'}`);
+  lines.push(`Chức vụ: ${chucvu||'-'}`);
+  lines.push(`Đơn vị: ${donvi||'-'}`);
+  lines.push(`Tổng số câu: ${total}`);
+  lines.push(`Số câu đúng: ${correct}`);
+  lines.push(`Điểm (thang 10): ${score10}`);
+  lines.push(``);
+  lines.push(`Chi tiết:`);
+
+  questions.forEach((q, i)=>{
+    const chosen = answers[i];
+    const cidx = q.choices.findIndex(c=>c.isCorrect);
+    const chosenText = (chosen!=null) ? q.choices[chosen].text : "(chưa chọn)";
+    const chosenLetter = (chosen!=null) ? (q.choices[chosen].letter || String.fromCharCode(65+chosen)) : "-";
+    const correctLetter = q.choices[cidx]?.letter || String.fromCharCode(65+cidx);
+    const isRight = (chosen!=null && chosen===cidx);
+
+    lines.push(`- Câu ${i+1}: ${q.text}`);
+    lines.push(`  Đúng: ${correctLetter}. ${q.choices[cidx]?.text}`);
+    lines.push(`  Chọn: ${chosenLetter}. ${chosenText} ${isRight ? '(ĐÚNG)' : '(SAI)'}`);
+  });
+
+  const body = lines.join('\n');
+  return { to, subject, body };
+}
+
+function openMailto({ to, subject, body }){
+  const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  // Dùng window.location để mở mail client. Một số trình duyệt chặn popup, nên location là chắc ăn hơn.
+  window.location.href = mailto;
 }
